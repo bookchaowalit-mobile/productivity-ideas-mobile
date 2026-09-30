@@ -1,6 +1,8 @@
 /// Ideas with ICE (impact x confidence x ease) scoring.
 library;
 
+import 'package:characters/characters.dart';
+
 class Idea {
   Idea({
     required this.id,
@@ -32,12 +34,14 @@ class Idea {
   /// Mean of the three scores, 1.0-10.0 (the other common ICE variant).
   double get iceAverage => (impact + confidence + ease) / 3;
 
-  Idea copyWith({bool? archived}) => Idea(
+  /// Throws [ArgumentError] when a new score is outside 1-10.
+  Idea copyWith({bool? archived, int? impact, int? confidence, int? ease}) =>
+      Idea(
         id: id,
         title: title,
-        impact: impact,
-        confidence: confidence,
-        ease: ease,
+        impact: impact ?? this.impact,
+        confidence: confidence ?? this.confidence,
+        ease: ease ?? this.ease,
         archived: archived ?? this.archived,
       );
 
@@ -63,16 +67,29 @@ class Idea {
 
 Map<String, Object?> ideaToJson(Idea idea) => idea.toJson();
 
+/// Case- and whitespace-insensitive key used for duplicate detection.
+String titleKey(String title) =>
+    title.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
+
 String? validateTitle(String title, Iterable<Idea> existing) {
   final t = title.trim();
   if (t.isEmpty) return 'Describe the idea';
-  if (t.length > 120) return 'Keep it under 120 characters';
-  if (existing
-      .any((i) => !i.archived && i.title.toLowerCase() == t.toLowerCase())) {
+  // Grapheme clusters, so emoji and Thai combining marks count once.
+  if (t.characters.length > 120) return 'Keep it under 120 characters';
+  if (existing.any((i) => !i.archived && titleKey(i.title) == titleKey(t))) {
     return 'You already have this idea';
   }
   return null;
 }
+
+/// Whether restoring [idea] from the archive would create a second active
+/// idea with the same title (which [validateTitle] prevents when adding).
+bool restoreWouldDuplicate(Idea idea, Iterable<Idea> existing) => existing.any(
+      (i) =>
+          !i.archived &&
+          i.id != idea.id &&
+          titleKey(i.title) == titleKey(idea.title),
+    );
 
 /// Active (or archived) ideas ranked by ICE score, then impact, then
 /// newest id first.

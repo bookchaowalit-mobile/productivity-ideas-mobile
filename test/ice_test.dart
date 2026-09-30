@@ -56,4 +56,63 @@ void main() {
     expect(a.archived, isTrue);
     expect(a.copyWith().archived, isTrue);
   });
+
+  group('edge cases (pass 3)', () {
+    test('score and tier boundaries', () {
+      expect(idea(1, 'a', 1, 1, 1).iceScore, 1);
+      expect(idea(1, 'a', 10, 10, 10).iceScore, 1000);
+      expect(tierOf(400), 'Do now');
+      expect(tierOf(399), 'Next');
+      expect(tierOf(150), 'Next');
+      expect(tierOf(149), 'Later');
+      expect(tierOf(50), 'Later');
+      expect(tierOf(49), 'Park');
+      expect(idea(1, 'a', 1, 2, 3).iceAverage, 2);
+    });
+
+    test('duplicates ignore case and repeated whitespace', () {
+      final existing = [idea(1, 'Dark  mode', 5, 5, 5)];
+      expect(validateTitle('dark mode', existing), isNotNull);
+      expect(validateTitle('  DARK\tMODE ', existing), isNotNull);
+      expect(validateTitle('dark modes', existing), isNull);
+    });
+
+    test('title limit counts visible characters', () {
+      expect(validateTitle('💡' * 120, const []), isNull);
+      expect(validateTitle('💡' * 121, const []), isNotNull);
+      expect(validateTitle(' \n ', const []), 'Describe the idea');
+    });
+
+    test('restoring an archived duplicate is detected', () {
+      final archived = idea(1, 'Dark mode', 5, 5, 5, archived: true);
+      final active = idea(2, 'dark  MODE', 3, 3, 3);
+      expect(restoreWouldDuplicate(archived, [archived, active]), isTrue);
+      expect(restoreWouldDuplicate(archived, [archived]), isFalse);
+      final otherArchived = idea(3, 'Dark mode', 1, 1, 1, archived: true);
+      expect(
+          restoreWouldDuplicate(archived, [archived, otherArchived]), isFalse);
+    });
+
+    test('copyWith re-scores and still validates the range', () {
+      final a = idea(1, 'a', 5, 5, 5);
+      final b = a.copyWith(impact: 10, ease: 1);
+      expect([b.impact, b.confidence, b.ease], [10, 5, 1]);
+      expect(b.id, a.id);
+      expect(() => a.copyWith(confidence: 0), throwsArgumentError);
+      expect(() => a.copyWith(confidence: 11), throwsArgumentError);
+    });
+
+    test('fromJson rejects out-of-range and wrongly typed scores', () {
+      final base = idea(1, 'a', 5, 5, 5).toJson();
+      expect(() => Idea.fromJson({...base, 'impact': 0}), throwsArgumentError);
+      expect(() => Idea.fromJson({...base, 'ease': 5.0}),
+          throwsA(isA<TypeError>()));
+      expect(Idea.fromJson({...base}..remove('archived')).archived, isFalse);
+    });
+
+    test('ranked with no ideas and with only archived ideas', () {
+      expect(ranked(const []), isEmpty);
+      expect(ranked([idea(1, 'a', 1, 1, 1, archived: true)]), isEmpty);
+    });
+  });
 }
