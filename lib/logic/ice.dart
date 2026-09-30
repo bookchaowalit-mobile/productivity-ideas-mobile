@@ -40,7 +40,28 @@ class Idea {
         ease: ease,
         archived: archived ?? this.archived,
       );
+
+  Map<String, Object?> toJson() => {
+        'id': id,
+        'title': title,
+        'impact': impact,
+        'confidence': confidence,
+        'ease': ease,
+        'archived': archived,
+      };
+
+  /// Throws on malformed input (wrong types or scores outside 1-10).
+  static Idea fromJson(Map<String, Object?> json) => Idea(
+        id: json['id'] as int,
+        title: json['title'] as String,
+        impact: json['impact'] as int,
+        confidence: json['confidence'] as int,
+        ease: json['ease'] as int,
+        archived: json['archived'] as bool? ?? false,
+      );
 }
+
+Map<String, Object?> ideaToJson(Idea idea) => idea.toJson();
 
 String? validateTitle(String title, Iterable<Idea> existing) {
   final t = title.trim();

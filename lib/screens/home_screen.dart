@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../data/idea_repository.dart';
+import '../data/list_repository.dart';
 import '../logic/ice.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.repository});
+
+  /// Where ideas are stored. Defaults to an in-memory store (tests); the
+  /// app passes [deviceIdeaRepository].
+  final IdeaRepository? repository;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -18,6 +24,49 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _showArchived = false;
   String? _error;
   int _nextId = 1;
+
+  late final IdeaRepository _repository =
+      widget.repository ?? InMemoryListRepository<Idea>();
+  bool _loading = true;
+  String? _storageError;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final saved = await _repository.load();
+      if (!mounted) return;
+      setState(() {
+        _ideas
+          ..clear()
+          ..addAll(saved);
+        _nextId = saved.fold(0, (m, e) => e.id > m ? e.id : m) + 1;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _storageError = 'Saved ideas could not be read.';
+      });
+    }
+  }
+
+  Future<void> _persist() async {
+    try {
+      await _repository.save(List.of(_ideas));
+      if (mounted && _storageError != null) {
+        setState(() => _storageError = null);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _storageError = 'Could not save ideas on this device.');
+    }
+  }
 
   @override
   void dispose() {
@@ -41,10 +90,13 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       _title.clear();
     });
+    if (error == null) _persist();
   }
 
-  void _replace(Idea idea, Idea updated) =>
-      setState(() => _ideas[_ideas.indexOf(idea)] = updated);
+  void _replace(Idea idea, Idea updated) {
+    setState(() => _ideas[_ideas.indexOf(idea)] = updated);
+    _persist();
+  }
 
   Widget _slider(String label, double value, ValueChanged<double> onChanged) {
     return Row(
@@ -75,6 +127,16 @@ class _HomeScreenState extends State<HomeScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (_loading) const LinearProgressIndicator(),
+          if (_storageError != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                _storageError!,
+                key: const Key('storage-error'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
           TextField(
             key: const Key('title-input'),
             controller: _title,
@@ -149,7 +211,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     IconButton(
                       tooltip: 'Delete ${list[i].title}',
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => setState(() => _ideas.remove(list[i])),
+                      onPressed: () {
+                        setState(() => _ideas.remove(list[i]));
+                        _persist();
+                      },
                     ),
                   ],
                 ),
