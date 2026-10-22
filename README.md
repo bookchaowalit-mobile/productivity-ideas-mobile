@@ -1,5 +1,14 @@
 # Ideas — Mobile
 
+## Template copy
+
+This repo is one of the name-substituted Flutter template copies in
+`bookchaowalit-mobile`. The canonical Flutter template is
+[`bookchaowalit-mobile/education-coursenotes-mobile`](https://github.com/bookchaowalit-mobile/education-coursenotes-mobile);
+fixes land there first and are copied here (this repo owns its copy, no shared
+package). Consolidation or archiving is pending owner decision D5 (BD-033), see
+`repository-catalog/portfolio/MOBILE-CONSOLIDATION-2026-10.md` in solo-empire.
+
 Capture ideas and rank them with ICE (impact, confidence, ease) scoring.
 
 Part of [Chaowalit Greepoke](https://bookchaowalit.com)'s 101 Portfolio Projects.
@@ -32,8 +41,11 @@ flutter test
 flutter run
 ```
 
-CI (`.github/workflows/build.yml`) runs the same format/analyze/test checks
-and fails closed; a debug APK is built on pushes to `main`.
+CI (`.github/workflows/build.yml`) pins Flutter in the workflow `env`,
+resolves dependencies with `flutter pub get --enforce-lockfile`, runs the same
+format/analyze/test checks (all fail closed) plus the shared
+`platform-ci-workflows` `security.yml` scan, and builds a debug APK on pushes
+to `main`.
 
 ## Build
 
